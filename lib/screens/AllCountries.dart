@@ -1,4 +1,4 @@
-import 'package:country_house/screens/Country.dart';
+import 'package:CQ/screens/Country.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
@@ -9,9 +9,11 @@ class AllCountries extends StatefulWidget{
 }
 
 class _AllCountriesState extends State<AllCountries> {
-  Future<List>countries;
+  List countries = [];
+  List filteredCountries = [];
+  bool isSearching = false;
 
-  Future<List> getCountries() async {
+  getCountries() async {
     var response = await Dio().get('https://restcountries.eu/rest/v2/all');
     return response.data;
   }
@@ -19,9 +21,20 @@ class _AllCountriesState extends State<AllCountries> {
   @override
   void initState() {
     // TODO: implement initState
-    countries = getCountries();
+    getCountries().then((data){
+     setState(() {
+        countries = filteredCountries = data;
+     });
+    });
     super.initState();
 
+  }
+
+
+  void _filterCountries(value){
+    setState(() {
+       filteredCountries =  countries.where((country) =>  country['name'].toLowerCase().contains(value.toLowerCase())).toList();
+    });
   }
 
   @override
@@ -30,74 +43,60 @@ class _AllCountriesState extends State<AllCountries> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: Text('All Countries'),
+        title:!isSearching ? Text('All Countries') 
+                             : TextField(
+                                          onChanged: (value){
+                                            _filterCountries(value);
+                                          },
+                                          decoration: InputDecoration(
+                                            icon: Icon(Icons.search,color: Colors.white,),
+                                            hintText: 'Search Country Here',
+                                            hintStyle: TextStyle(color: Colors.white)
+                                          ),
+                                          ),
+        actions: <Widget> [
+          isSearching ?
+          IconButton(
+            icon: Icon(Icons.cancel),
+            onPressed: (){
+              setState(() {
+                this.isSearching = false;
+                filteredCountries = countries;
+              });
+            }
+          ):
+          IconButton(
+            icon: Icon(Icons.search),
+            onPressed: (){
+              setState(() {
+                this.isSearching = true;
+              });
+            }
+          )
+        ],
       ),
       body: Container(
         padding: EdgeInsets.all(10),
-        child: FutureBuilder<List>(
-                  future: countries,
-                  builder: (BuildContext context,AsyncSnapshot<List> snapshot) {
-                    if (snapshot.hasData) {
-
-                      return ListView.builder(itemBuilder: (BuildContext context,int index){
+        child: filteredCountries.length > 0 ? ListView.builder(itemCount: filteredCountries.length,itemBuilder: (BuildContext context,int index){
                          return GestureDetector(
                             onTap: (){
                               Navigator.of(context).push(MaterialPageRoute(
-                                builder:(context) =>  Country(snapshot.data[index]),
+                                builder:(context) =>  Country(filteredCountries[index]),
                               ),
                               );
                             },
                             child:Card(
                               child:Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 10,horizontal: 8),
-                                child: Text(snapshot.data[index]['name'],style: TextStyle(fontSize: 18),),
+                                child: Text(filteredCountries[index]['name'],style: TextStyle(fontSize: 18),),
                               ),
                             ),
                           );
 
-                      });
-
-                    } else if (snapshot.hasError) {
-                      return Text("${snapshot.error}");
-                    }
-
-                    // By default, show a loading spinner.
-                    return CircularProgressIndicator();
-                  },
-           ),
-
-        // child:ListView(children: [
-        //   GestureDetector(
-        //     onTap: (){
-        //       Navigator.of(context).push(MaterialPageRoute(
-        //         builder:(context) =>  Country('Bangladesh'),
-        //       ),
-        //       );
-        //     },
-        //     child:Card(
-        //       child:Padding(
-        //         padding: const EdgeInsets.symmetric(vertical: 10,horizontal: 8),
-        //         child: Text('Bangladesh',style: TextStyle(fontSize: 18),),
-        //       ),
-        //     ),
-        //   ),
-
-        //   GestureDetector(
-        //     onTap: (){
-        //       Navigator.of(context).push(MaterialPageRoute(
-        //         builder:(context) =>  Country('India'),
-        //       ),
-        //       );
-        //     },
-        //     child:Card(
-        //       child:Padding(
-        //         padding: const EdgeInsets.symmetric(vertical: 10,horizontal: 8),
-        //         child: Text('India',style: TextStyle(fontSize: 18),),
-        //       ),
-        //     ),
-        //   ),
-        // ],
-        // ),
+                      }):
+                      Center(
+                        child: CircularProgressIndicator(),
+                      ),
       ),
     );
   }
